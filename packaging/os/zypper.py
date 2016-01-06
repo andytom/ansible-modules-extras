@@ -34,6 +34,7 @@ module: zypper
 author:
     - "Patrick Callahan (@dirtyharrycallahan)"
     - "Alexander Gubin (@alxgu)"
+    - "Thomas O'Donnell (@andytom)"
 version_added: "1.2"
 short_description: Manage packages on SUSE and openSUSE
 description:
@@ -41,7 +42,7 @@ description:
 options:
     name:
         description:
-        - package name or package specifier with version C(name) or C(name-1.0). You can also pass a url or a local path to a rpm file.
+        - package name or package specifier with version C(name) or C(name-1.0). You can also pass a url or a local path to a rpm file. When using state=latest, this can be '*' which means run: zypper update --non-interactive
         required: true
         aliases: [ 'pkg' ]
     state:
@@ -71,7 +72,7 @@ options:
     disable_recommends:
         version_added: "1.8"
         description:
-          - Corresponds to the C(--no-recommends) option for I(zypper). Default behavior (C(yes)) modifies zypper's default behavior; C(no) does install recommended packages. 
+          - Corresponds to the C(--no-recommends) option for I(zypper). Default behavior (C(yes)) modifies zypper's default behavior; C(no) does install recommended packages.
         required: false
         default: "yes"
         choices: [ "yes", "no" ]
@@ -97,6 +98,9 @@ EXAMPLES = '''
 
 # Install local rpm file
 - zypper: name=/tmp/fancy-software.rpm state=present
+
+# Update all packages
+- zypper: name=* state=latest
 '''
 
 # Function used for getting zypper version
@@ -201,8 +205,33 @@ def package_present(m, name, installed_state, package_type, disable_gpg_check, d
 
     return (rc, stdout, stderr, changed)
 
+
+def package_latest_all(m, package_type, disable_gpg_check, disable_recommends, old_zypper):
+    cmd = ['/usr/bin/zypper', '--non-interactive']
+
+    if disable_gpg_check:
+        cmd.append('--no-gpg-checks')
+
+    cmd.extend(['update', '--auto-agree-with-licenses', '-t', package_type])
+
+    if disable_recommends and not old_zypper:
+        cmd.append('--no-recommends')
+
+    rc, stdout, stderr = m.run_command(cmd, check_rc=False)
+
+    if 'Nothing to do.' in stdout:
+        changed = False
+    else:
+        changed = True
+
+    return (rc, stdout, stderr, changed)
+
+
 # Function used to make sure a package is the latest available version.
 def package_latest(m, name, installed_state, package_type, disable_gpg_check, disable_recommends, old_zypper):
+
+    if name == ['*']:
+         return package_latest_all(m, package_type, disable_gpg_check, disable_recommends, old_zypper)
 
     # first of all, make sure all the packages are installed
     (rc, stdout, stderr, changed) = package_present(m, name, installed_state, package_type, disable_gpg_check, disable_recommends, old_zypper)
