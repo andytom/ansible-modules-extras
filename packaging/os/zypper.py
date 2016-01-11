@@ -32,7 +32,6 @@ DOCUMENTATION = '''
 ---
 module: zypper
 author:
-    - "Patrick Callahan (@dirtyharrycallahan)"
     - "Alexander Gubin (@alxgu)"
     - "Thomas O'Donnell (@andytom)"
 version_added: "1.2"
